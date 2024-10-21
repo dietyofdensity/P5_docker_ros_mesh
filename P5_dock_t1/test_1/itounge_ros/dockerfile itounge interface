@@ -1,0 +1,7 @@
+FROM osrf/ros:foxy-desktop
+RUN apt-get update
+RUN source /opt/ros/foxy/setup.bash
+COPY from bas
+CMD source ros_entrypoint.sh
+
+
