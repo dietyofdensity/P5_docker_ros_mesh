@@ -1,7 +1,10 @@
-FROM osrf/ros:foxy-desktop
+FROM osrf/ros:noetic-desktop
 RUN apt-get update
-RUN source /opt/ros/foxy/setup.bash
-COPY from bas
-CMD source ros_entrypoint.sh
-
-
+RUN apt-get install git -y
+RUN sudo apt-get install apt-transport-https -y
+RUN mkdir catkin_ws
+RUN cd catkin_ws
+RUN mkdir src
+RUN cd src
+RUN apt-get update
+RUN git clone -b noetic-devel git@github.com:Kinovarobotics/kinova-ros.git kinova-ros -y
