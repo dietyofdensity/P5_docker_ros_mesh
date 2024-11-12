@@ -1,0 +1,205 @@
+import zmq
+import msgpack
+import numpy as np
+import pygame.camera
+
+pygame.init()
+width, height = 1920, 1080
+screen = pygame.display.set_mode((width, height), pygame.HWSURFACE | pygame.DOUBLEBUF)
+pygame.display.set_caption('Gaze vizu')
+clock = pygame.time.Clock()
+
+
+overlay_w = 1520
+
+pygame.camera.init()
+cam = pygame.camera.Camera(0)
+cam.start()
+
+smooth_pos = np.zeros(2)
+smoothing = 60
+
+April0 = 'April0.png'
+April1 = 'April1.png'
+April2 = 'April2.png'
+April3 = 'April3.png'
+
+marker0 = pygame.image.load(April0)
+marker1 = pygame.image.load(April1)
+marker2 = pygame.image.load(April2)
+marker3 = pygame.image.load(April3)
+
+box1_size = 250
+box2_size = 250
+box3_size = 300
+box4_size = 300
+
+box0_act = (box3_size + 10, box1_size + 10, overlay_w-box3_size-box3_size-20, height-box1_size-box2_size-20)
+box1_act = (box3_size+10, 10, overlay_w-box3_size-box4_size-20, box1_size-20)
+box2_act = (box3_size+10, height-box2_size+10, overlay_w-box3_size-box4_size-20, box2_size-20)
+box3_act = (10, box1_size+10, box3_size-20, height-box1_size-box2_size-20)
+box4_act = (overlay_w-box4_size+10, box1_size+10, box4_size-20, height-box1_size-box2_size-20)
+
+box1 = (box3_size, 0, overlay_w-box3_size-box4_size, box1_size)
+box2 = (box3_size, height-box2_size, overlay_w-box3_size-box4_size, box2_size)
+box3 = (0, box1_size, box3_size, height-box1_size-box2_size)
+box4 = (overlay_w-box4_size, box1_size, box4_size, height-box1_size-box2_size)
+
+actuation = (width-300, (height/2)-300, 200, 300)
+actuation_outline = (width-305, (height/2)-305, 210, 310)
+
+box = None
+locked_box = None
+
+ctx = zmq.Context()
+
+req = zmq.Socket(ctx, zmq.REQ)
+ip = 'localhost'
+port = 50020
+
+req.connect(f'tcp://{ip}:{port}')
+try:
+    req.send_string('SUB_PORT')
+    sub_port = req.recv_string()  # this is the line where everything crash
+except zmq.ZMQError as e:
+    print(f'Error port: {e}')
+    running = False
+
+surf_sub = ctx.socket(zmq.SUB)
+surf_sub.connect(f'tcp://{ip}:{sub_port}')
+surf_sub.subscribe('surfaces.Surface 1')
+
+surf_sub.setsockopt(zmq.RCVTIMEO, 1000)
+
+running = True
+gaze_pos_surf = None
+gaze_pos_his = []
+
+
+def recv_surf_data():
+    global gaze_pos_surf, smooth_pos
+    try:
+        topic, payload = surf_sub.recv_multipart()
+        message = msgpack.loads(payload)
+        # print(f"{topic}:{message}")
+
+        if b'gaze_on_surfaces' in message:
+            gaze_on_surface = message[b'gaze_on_surfaces']
+
+            for gaze in gaze_on_surface:
+                if gaze[b'on_surf']:
+                    gaze_pos_surf = gaze[b'norm_pos']
+
+                    gaze_pos_his.append(gaze_pos_surf)
+
+                    if len(gaze_pos_his) > smoothing:
+                        gaze_pos_his.pop(0)
+                    if len(gaze_pos_his)%5 == 0:
+                        smooth_pos[:] = np.mean(gaze_pos_his, axis=0)
+    except zmq.Again:
+        pass
+
+
+
+
+
+try:
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        
+        keys = pygame.key.get_pressed()
+        clock.tick(30)
+        screen.fill((255,255,255))
+        img = cam.get_image()
+        img = pygame.transform.scale(img, (1520-box3_size-box4_size, height-box1_size-box2_size))
+        screen.blit(img, (box3_size, box1_size))
+
+        pygame.draw.rect(screen, (171,194,196), (box1), 0)
+        pygame.draw.rect(screen, (171,194,196), (box2), 0)
+        pygame.draw.rect(screen, (171,194,196), (box3), 0)
+        pygame.draw.rect(screen, (171,194,196), (box4), 0)
+        
+        
+        screen.blit(marker0, (0,0))
+        screen.blit(marker1, (0, height-207))
+        screen.blit(marker2, (overlay_w-207, height-207))
+        screen.blit(marker3, (overlay_w-204, 0))
+
+
+        recv_surf_data()
+
+        if gaze_pos_surf is not None:
+            x_pixel = int(gaze_pos_surf[0] * overlay_w)
+            y_pixel = height - int(gaze_pos_surf[1] * height)
+            # print('x,y', x_pixel, y_pixel)
+            x_smooth = int(smooth_pos[0] * overlay_w)
+            y_smooth = height - int(smooth_pos[1] * height)
+
+            
+            if not keys[pygame.K_UP]:
+                transparent_circle_smooth = pygame.Surface((40, 40), pygame.SRCALPHA)
+                pygame.draw.circle(transparent_circle_smooth, (0, 255, 0, 128), (20, 20), 20)  # Semi-transparent green
+                screen.blit(transparent_circle_smooth, (x_smooth - 20, y_smooth - 20))
+
+                transparent_circle_pixel = pygame.Surface((40, 40), pygame.SRCALPHA)
+                pygame.draw.circle(transparent_circle_pixel, (255, 0, 0, 128), (20, 20), 20)  # Semi-transparent red
+                screen.blit(transparent_circle_pixel, (x_pixel - 20, y_pixel - 20))
+
+                if box3_size < x_pixel < overlay_w-box4_size and y_pixel < box1_size:
+                        box = 1
+                elif box3_size < x_pixel < overlay_w-box4_size and y_pixel > height-box2_size:
+                    box = 2
+                elif box1_size < y_pixel < height-box2_size and x_pixel < box3_size:
+                    box = 3
+                elif box1_size < y_pixel < height-box2_size and x_pixel > overlay_w-box4_size:
+                    box = 4
+                else:
+                    box = 0
+
+
+        pygame.draw.line(screen, (0,15,8), (0, box1_size),(overlay_w, box1_size), 3)
+        pygame.draw.line(screen, (0,15,8), (0, height-box2_size),(overlay_w, height-box2_size), 3)
+        pygame.draw.line(screen, (0,15,8), (box3_size, 0),(box3_size, height), 3)
+        pygame.draw.line(screen, (0,15,8), (overlay_w-box4_size, 0),(overlay_w-box4_size, height), 3)
+        pygame.draw.line(screen, (0,15,8), (overlay_w,0),(overlay_w, height), 3)
+
+        pygame.draw.circle(screen, (0, 15, 8), (overlay_w/2, box1_size/2), 40)
+        pygame.draw.circle(screen, (0, 15, 8), (overlay_w/2, height-(box2_size/2)), 40)
+        pygame.draw.circle(screen, (0, 15, 8), (box3_size/2, height/2), 40)
+        pygame.draw.circle(screen, (0, 15, 8), (overlay_w-box4_size/2, height/2), 40)
+        pygame.draw.rect(screen, (0, 15,8), (actuation_outline), 5)
+
+       
+            
+        
+        if keys[pygame.K_ESCAPE]:
+            running = False
+
+        if keys[pygame.K_UP]:
+            pygame.draw.rect(screen, (0,255,0), (actuation), 0)
+            locked_box = box
+        else:
+            locked_box = None
+
+        if locked_box == 0:
+            pygame.draw.rect(screen,(0,255,0), (box0_act), 5)
+        if locked_box == 1:
+            pygame.draw.rect(screen, (0,255,0), (box1_act), 5)
+        if locked_box == 2:
+            pygame.draw.rect(screen,(0,255,0), (box2_act), 5)
+        if locked_box == 3:
+            pygame.draw.rect(screen,(0,255,0), (box3_act), 5)
+        if locked_box == 4:
+            pygame.draw.rect(screen,(0,255,0), (box4_act), 5)
+        
+        pygame.display.flip()
+
+
+
+except KeyboardInterrupt:
+    pass
+finally:
+    pygame.quit()
