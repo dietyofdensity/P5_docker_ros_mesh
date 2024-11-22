@@ -6,8 +6,6 @@ import pyglet
 from pyglet.gui import Frame, PushButton
 
 from pytongue.gui.widgets import Widget
-from pytongue.system.central_unit import CentralUnit
-from pytongue.system.sensor_processing import DataProcessor
 
 import pytongue.system.mouthpieces as mp
 from pytongue.window.window import AUTrackingWindow
@@ -19,18 +17,13 @@ target_string = ["contract", "act", "expand", "left", "right"]
 
 dirname = os.path.dirname(os.path.abspath(__file__))
 
-pyglet.resource.path = [
-    dirname + "/resources/images",
-    dirname + "/resources/sounds",
-]
-# pyglet.resource.reindex()
+pyglet.resource.path = [dirname + "/resources/images"]
 
-# success_media: pyglet.media.Source = pyglet.resource.media(
-#     "confirmation.mp3", streaming=False
-# )
-# failure_media: pyglet.media.Source = pyglet.resource.media(
-#     "explosion.wav", streaming=False
-# )
+def slidebar(input_value, limit=1.0):
+    if abs(input_value) < 100:
+        return input_value / 100
+    else:
+        return limit if input_value > 0 else -limit
 
 class Data: 
     def __init__(self): 
@@ -38,12 +31,15 @@ class Data:
         self.y = 0 
         self.targ = None
         self.activation_time = None
+        self.speed = None
     
-    def update(self, x, y, targ, time):
+    def update(self, x, y, targ, time, speed):
         self.x = x
         self.y = y
         self.activation_time = time
         self.targ = targ
+        self.speed = speed
+
         
     def publish(self): 
         print("X: {:.0f} , Y: {:.0f}".format(self.x, self.y))
@@ -51,7 +47,9 @@ class Data:
         if self.targ is not None: 
             print("Target: ", target_string[self.targ])
         if not self.activation_time == None: 
-            print("AT: ", self.activation_time)            
+            print("AT: ", self.activation_time)     
+        if not self.speed == None:
+            print("Speed: ", self.speed)       
 
 
 class Target(Widget):
@@ -63,12 +61,14 @@ class Target(Widget):
         width: int,
         height: int,
         activation_time: float,
+        speed: float,
         idle_color: tuple,
         active_color: tuple,
         border_color: tuple,
         highlight_color: tuple = None,
         batch: pyglet.graphics.Batch = None,
         group: pyglet.graphics.Group = None,
+        self_location: tuple = None,
     ) -> None:
         self._batch = batch or pyglet.graphics.Batch()
         self.id = id
@@ -78,6 +78,8 @@ class Target(Widget):
         self._border_color = border_color
         self._activation_time = activation_time
         self._timer = 0
+        self._speed = speed
+        self._location = self_location
 
         if highlight_color is None:
             highlight_color = idle_color
@@ -109,26 +111,30 @@ class Target(Widget):
         self._body.visible = True
         self._body.color = self._idle_color
 
-    def press(self, dt, x, y):
-        if self._timer >= self._activation_time:
+    def press(self, dt, x, y):    
+        self._body.color = self._active_color
+        if self._timer > self._activation_time:
             self._timer += dt
-            self._body.color = self._active_color
+            self._speed = slidebar(y - self._location[1])
         else:
             self._timer += dt
-            self._body.color = self._update_color()
+            self._location = (x, y)
     
     def get_time(self): 
         return self._timer
 
+    def get_speed(self):
+        return self._speed
+
     def release(self):
         self._timer = 0
+        self._speed = 0
         self.reset()
         self.dispatch_event("on_release", self)
 
-
 class Task(pyglet.event.EventDispatcher):
     def __init__(
-        self, window, batch, group, timeout=DEFAULT_TIMEOUT, cell_size=DEFAULT_CELL_SIZE
+        self, window, batch, group, cell_size=DEFAULT_CELL_SIZE
     ):
         """Create an instance of a Frame."""
         self._win = window
@@ -157,7 +163,7 @@ class Task(pyglet.event.EventDispatcher):
         self._cells = {}
         id = 0
 
-        # Define the specific cell positions and sizes
+        # Define the specific cells
         cell_definitions = [
             (0, 180, 135, 360),  # Upper left: (x, y, width, height)
             (135, 180, 270, 360),  # Upper middle
@@ -173,7 +179,8 @@ class Task(pyglet.event.EventDispatcher):
                 y,
                 width,
                 height,
-                activation_time=1,
+                activation_time=0,
+                speed=0,
                 batch=self._batch,
                 group=self._bg_group,
                 idle_color=(240, 128, 128, 255),
@@ -197,6 +204,7 @@ class Task(pyglet.event.EventDispatcher):
         y = self._win.last_contact_event.y
         time = None
         id = None
+        speed = None
 
         # Use the new _hash method to find the active widget
         cell_key = self._hash(x, y)
@@ -207,12 +215,13 @@ class Task(pyglet.event.EventDispatcher):
                 self._pressed_target.release()
             widget.press(dt, x, y)
             time = widget.get_time()
+            speed = widget.get_speed()
             id = widget.id
             self._pressed_target = widget
         elif self._pressed_target is not None:
             self._pressed_target.release()
             self._pressed_target = None
-        self.data.update(x, y, id, time)
+        self.data.update(x, y, id, time, speed)
 
         
     def run(self):
