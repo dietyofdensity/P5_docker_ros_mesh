@@ -32,14 +32,17 @@ class Data:
         self.targ = None
         self.activation_time = None
         self.speed = None
+        self.is_virgin = True
+        self.location = ()
     
-    def update(self, x, y, targ, time, speed):
+    def update(self, x, y, targ, time, speed, virgin, location):
         self.x = x
         self.y = y
         self.activation_time = time
         self.targ = targ
         self.speed = speed
-
+        self.is_virgin = virgin
+        self.location = location
         
     def publish(self): 
         print("X: {:.0f} , Y: {:.0f}".format(self.x, self.y))
@@ -61,14 +64,12 @@ class Target(Widget):
         width: int,
         height: int,
         activation_time: float,
-        speed: float,
         idle_color: tuple,
         active_color: tuple,
         border_color: tuple,
         highlight_color: tuple = None,
         batch: pyglet.graphics.Batch = None,
         group: pyglet.graphics.Group = None,
-        self_location: tuple = None,
     ) -> None:
         self._batch = batch or pyglet.graphics.Batch()
         self.id = id
@@ -78,8 +79,11 @@ class Target(Widget):
         self._border_color = border_color
         self._activation_time = activation_time
         self._timer = 0
-        self._speed = speed
-        self._location = self_location
+        self.data = Data()
+
+        self._location = self.data.location
+        self._virgin = self.data.is_virgin
+        self._speed = self.data.speed
 
         if highlight_color is None:
             highlight_color = idle_color
@@ -115,20 +119,19 @@ class Target(Widget):
         self._body.color = self._active_color
         if self._timer > self._activation_time:
             self._timer += dt
-            self._speed = slidebar(y - self._location[1])
         else:
             self._timer += dt
-            self._location = (x, y)
     
     def get_time(self): 
         return self._timer
-
+    
     def get_speed(self):
         return self._speed
 
     def release(self):
         self._timer = 0
-        self._speed = 0
+        if self._virgin or not self._on:
+            self._speed = 0
         self.reset()
         self.dispatch_event("on_release", self)
 
@@ -180,7 +183,6 @@ class Task(pyglet.event.EventDispatcher):
                 width,
                 height,
                 activation_time=0,
-                speed=0,
                 batch=self._batch,
                 group=self._bg_group,
                 idle_color=(240, 128, 128, 255),
@@ -205,6 +207,8 @@ class Task(pyglet.event.EventDispatcher):
         time = None
         id = None
         speed = None
+        location = self.data.location
+        virgin = self.data.is_virgin
 
         # Use the new _hash method to find the active widget
         cell_key = self._hash(x, y)
@@ -213,15 +217,20 @@ class Task(pyglet.event.EventDispatcher):
         if widget is not None and self._win.last_contact_event.contact:
             if widget != self._pressed_target and self._pressed_target is not None:
                 self._pressed_target.release()
+            if virgin:
+                virgin = False
+                location = (x, y)
             widget.press(dt, x, y)
             time = widget.get_time()
-            speed = widget.get_speed()
+            # print(widget != self._pressed_target)
+            speed = slidebar(y - location[1])
             id = widget.id
             self._pressed_target = widget
         elif self._pressed_target is not None:
             self._pressed_target.release()
+            speed = widget.get_speed()
             self._pressed_target = None
-        self.data.update(x, y, id, time, speed)
+        self.data.update(x, y, id, time, speed, virgin, location)
 
         
     def run(self):
