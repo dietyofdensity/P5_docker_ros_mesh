@@ -19,6 +19,7 @@ dirname = os.path.dirname(os.path.abspath(__file__))
 
 pyglet.resource.path = [dirname + "/resources/images"]
 
+## Calculate the speed of the cursor
 def slidebar(input_value, limit=1.0):
     if abs(input_value) < 100:
         return input_value / 100
@@ -222,7 +223,6 @@ class Task(pyglet.event.EventDispatcher):
                 location = (x, y)
             widget.press(dt, x, y)
             time = widget.get_time()
-            # print(widget != self._pressed_target)
             speed = slidebar(y - location[1])
             id = widget.id
             self._pressed_target = widget
@@ -235,7 +235,7 @@ class Task(pyglet.event.EventDispatcher):
         
     def run(self):
         self._running = True
-        pyglet.clock.schedule_interval(self.update, 1 / 60)
+        pyglet.clock.schedule_interval(self.update, 1 / 60) ## the rate of the update
 
     @property
     def running(self):
