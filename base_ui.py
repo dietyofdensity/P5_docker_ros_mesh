@@ -228,7 +228,10 @@ class Task(pyglet.event.EventDispatcher):
             self._pressed_target = widget
         elif self._pressed_target is not None:
             self._pressed_target.release()
-            speed = widget.get_speed()
+            if widget is None:
+                speed = 0
+            else:
+                speed = widget.get_speed()
             self._pressed_target = None
         self.data.update(x, y, id, time, speed, virgin, location)
 
