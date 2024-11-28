@@ -275,7 +275,6 @@ class SetupScreen:
         self.spacing = (window.width * hspace, window.height * vspace)
         self.top_corner = self.margin[0], window.height - self.margin[1]
 
-
         self.task_setup_frame = Frame(window)
 
         self.background = pyglet.shapes.Rectangle(
@@ -325,7 +324,6 @@ if __name__ == "__main__":
         default="flat",
     )
 
-
     args = parser.parse_args()
 
     if args.m.lower() == "flat":
@@ -339,7 +337,6 @@ if __name__ == "__main__":
         application_path = os.path.dirname(sys.executable)
     elif __file__:
         application_path = os.path.dirname(__file__)
-
 
     gl_config = pyglet.gl.Config(sample_buffers=1, samples=4, alpha_size=8)
     win = AUTrackingWindow(
@@ -363,10 +360,8 @@ if __name__ == "__main__":
     win.set_mouse_cursor(cursor)
     cursor = pyglet.sprite.Sprite(img, batch=task_batch, group=middleground)
 
-
     task = Task(win, task_batch, background)
     recorder = None
-
     show_setup = True
     
     @win.event("on_draw")
