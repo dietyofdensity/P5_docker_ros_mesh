@@ -11,7 +11,7 @@ import pytongue.system.mouthpieces as mp
 from pytongue.window.window import AUTrackingWindow
 
 DEFAULT_CELL_SIZE = 180
-DEFAULT_TIMEOUT = 5
+
 target_string = ["contract", "act", "expand", "left", "right"]
 
 
@@ -34,7 +34,7 @@ class Data:
         self.activation_time = None
         self.speed = None
         self.is_virgin = True
-        self.location = ()
+        self.location = () ## location of the first click
     
     def update(self, x, y, targ, time, speed, virgin, location):
         self.x = x
@@ -275,6 +275,7 @@ class SetupScreen:
         self.spacing = (window.width * hspace, window.height * vspace)
         self.top_corner = self.margin[0], window.height - self.margin[1]
 
+
         self.task_setup_frame = Frame(window)
 
         self.background = pyglet.shapes.Rectangle(
@@ -324,6 +325,7 @@ if __name__ == "__main__":
         default="flat",
     )
 
+
     args = parser.parse_args()
 
     if args.m.lower() == "flat":
@@ -337,6 +339,7 @@ if __name__ == "__main__":
         application_path = os.path.dirname(sys.executable)
     elif __file__:
         application_path = os.path.dirname(__file__)
+
 
     gl_config = pyglet.gl.Config(sample_buffers=1, samples=4, alpha_size=8)
     win = AUTrackingWindow(
@@ -360,8 +363,10 @@ if __name__ == "__main__":
     win.set_mouse_cursor(cursor)
     cursor = pyglet.sprite.Sprite(img, batch=task_batch, group=middleground)
 
+
     task = Task(win, task_batch, background)
     recorder = None
+
     show_setup = True
     
     @win.event("on_draw")
