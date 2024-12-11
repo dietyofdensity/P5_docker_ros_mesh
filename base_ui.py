@@ -10,8 +10,6 @@ from pytongue.gui.widgets import Widget
 import pytongue.system.mouthpieces as mp
 from pytongue.window.window import AUTrackingWindow
 
-DEFAULT_CELL_SIZE = 180
-
 target_string = ["contract", "act", "expand", "left", "right"]
 
 
@@ -142,12 +140,10 @@ class Target(Widget):
 
 class Task(pyglet.event.EventDispatcher):
     def __init__(
-        self, window, batch, group, cell_size=DEFAULT_CELL_SIZE
-    ):
+        self, window, batch, group):
         """Create an instance of a Frame."""
         self._win = window
         self._size = window.size
-        self._cell_size = cell_size
         self._pressed_target = None
         self._running = False
         self._batch = batch
@@ -155,9 +151,6 @@ class Task(pyglet.event.EventDispatcher):
         self._bg_group = pyglet.graphics.Group(order=0, parent=group)
         self._populate()
         self.data = Data()
-
-    def _get_parameters(self):
-        return self._cell_size, self._timeout
 
     def _hash(self, x, y):
         """Determine which custom cell (x, y) falls into"""
@@ -248,16 +241,7 @@ class Task(pyglet.event.EventDispatcher):
     @property
     def running(self):
         return self._running
-
-    @property
-    def cell_size(self):
-        return self._cell_size
-
-    @cell_size.setter
-    def cell_size(self, value):
-        del self._cells, self._center_widget
-        self._cell_size = value
-        self._populate()
+        
 
 class SetupScreen:
     def __init__(
