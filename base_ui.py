@@ -14,6 +14,7 @@ DEFAULT_CELL_SIZE = 180
 
 target_string = ["contract", "act", "expand", "left", "right"]
 
+
 dirname = os.path.dirname(os.path.abspath(__file__))
 
 pyglet.resource.path = [dirname + "/resources/images"]
@@ -53,6 +54,7 @@ class Data:
             print("AT: ", self.activation_time)     
         if not self.speed == None:
             print("Speed: ", self.speed)       
+
 
 class Target(Widget):
     def __init__(
@@ -127,10 +129,14 @@ class Target(Widget):
     def get_speed(self):
         return self._speed
 
+    def get_virgin(self):
+        return self._virgin
+
     def release(self):
         self._timer = 0
         if self._virgin or not self._on:
             self._speed = 0
+            self._virgin = True
         self.reset()
         self.dispatch_event("on_release", self)
 
@@ -159,6 +165,7 @@ class Task(pyglet.event.EventDispatcher):
             if cell_x <= x < cell_x + button._body.width and cell_y <= y < cell_y + button._body.height:
                 return cell_x, cell_y
         return None  # Return None if the point is not within any cell
+
 
     def _populate(self):
         self._cells = {}
@@ -225,12 +232,14 @@ class Task(pyglet.event.EventDispatcher):
             self._pressed_target = widget
         elif self._pressed_target is not None:
             self._pressed_target.release()
+            virgin = True
             if widget is None:
                 speed = 0
             else:
                 speed = widget.get_speed()
             self._pressed_target = None
         self.data.update(x, y, id, time, speed, virgin, location)
+
         
     def run(self):
         self._running = True
@@ -294,6 +303,7 @@ class SetupScreen:
         )
         self.task_setup_frame.add_widget(self.start_button)
 
+
 if __name__ == "__main__":
     task_batch = pyglet.graphics.Batch()
     background = pyglet.graphics.Group(order=0)
@@ -335,6 +345,7 @@ if __name__ == "__main__":
     elif __file__:
         application_path = os.path.dirname(__file__)
 
+
     gl_config = pyglet.gl.Config(sample_buffers=1, samples=4, alpha_size=8)
     win = AUTrackingWindow(
         sensor_positions=mouthpiece.sensor_positions,
@@ -356,6 +367,7 @@ if __name__ == "__main__":
     cursor = pyglet.window.ImageMouseCursor(img, 0, 0)
     win.set_mouse_cursor(cursor)
     cursor = pyglet.sprite.Sprite(img, batch=task_batch, group=middleground)
+
 
     task = Task(win, task_batch, background)
     recorder = None
