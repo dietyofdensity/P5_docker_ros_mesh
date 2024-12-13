@@ -12,15 +12,14 @@ from pytongue.window.window import AUTrackingWindow
 
 target_string = ["contract", "act", "expand", "left", "right"]
 
-
-dirname = os.path.dirname(os.path.abspath(__file__))
+dirname =os.path.dirname(os.path.abspath(__file__))
 
 pyglet.resource.path = [dirname + "/resources/images"]
 
 ## Calculate the speed of the cursor
 def slidebar(input_value, limit=1.0):
-    if abs(input_value) < 100:
-        return input_value / 100
+    if abs(input_value) < 125:
+        return input_value / 125
     else:
         return limit if input_value > 0 else -limit
 
@@ -166,11 +165,11 @@ class Task(pyglet.event.EventDispatcher):
 
         # Define the specific cells
         cell_definitions = [
-            (0, 180, 135, 360),  # Upper left: (x, y, width, height)
-            (135, 180, 270, 360),  # Upper middle
-            (405, 180, 135, 360),  # Upper right
-            (0, 0, 270, 180),  # Lower left
-            (270, 0, 270, 180),  # Lower right
+            (0, 300, 160, 600),  # Upper left: (x, y, width, height)
+            (160, 300, 220, 600),  # Upper middle
+            (380, 300, 160, 600),  # Upper right
+            (0, 0, 270, 300),  # Lower left
+            (270, 0, 270, 300),  # Lower right
         ]
 
         for x, y, width, height in cell_definitions:
@@ -241,7 +240,7 @@ class Task(pyglet.event.EventDispatcher):
     @property
     def running(self):
         return self._running
-        
+
 
 class SetupScreen:
     def __init__(
@@ -337,7 +336,7 @@ if __name__ == "__main__":
         invert_x=False,
         invert_y=False,
         width=540,
-        height=540,
+        height=900,
         caption="PyTongue GUI",
         style=pyglet.window.Window.WINDOW_STYLE_DEFAULT,
         resizable=False,
