@@ -103,12 +103,6 @@ class Target(Widget):
             group=self._group,
         )
 
-    def rescale(self):
-        raise NotImplementedError
-
-    def _asdict(self) -> dict:
-        raise NotImplementedError
-
     def reset(self):
         self._body.visible = True
         self._body.color = self._idle_color
